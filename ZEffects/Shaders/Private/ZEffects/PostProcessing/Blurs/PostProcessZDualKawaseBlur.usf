@@ -1,0 +1,61 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PostProcessZDualKawaseBlur.usf: PostProcessing shader to show ZDualKawase Blur.
+=============================================================================*/
+
+#include "../../../Common.ush"
+#include "../../../DeferredShadingCommon.ush"
+#include "../../../ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewportInfo)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+float BlurRadius;
+
+void DownSample(float2 RawUV, out float3 OutColor)
+{
+	float4 Offset = ViewportInfo_ExtentInverse.xyxy * float4(0.5,0.5,-0.5,-0.5) /2.0 * BlurRadius;//对当前像素的四个角进行采样 最后除2是因为DownScale的时候，偏移要按DownScale之前的图像算，而我们传进来的Extent是DownScale结果的大小
+
+	OutColor = Texture2DSample(InputTexture, InputSampler, RawUV).rgb * 4.0;
+	OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.xy).rgb;
+	OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.xw).rgb;
+	OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.zy).rgb;
+	OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.zw).rgb;
+
+	OutColor *= 0.125;
+}
+
+void UpSample(float2 RawUV, out float3 OutColor)
+{
+	float4 Offset = ViewportInfo_ExtentInverse.xyxy * float4(0.5,0.5,-0.5,-0.5) * 2.0 * BlurRadius;//对当前像素的四个角进行采样    最后乘2是因为UpScale的时候，偏移要按UpScale之前的图像算，而我们传进来的Extent是UpScale结果的大小
+	OutColor = 0.0;
+	OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.xy ).rgb * 2.0;//四个角上是1/6的权重
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.zw ).rgb * 2.0;
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.xw ).rgb * 2.0;
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + Offset.zy ).rgb * 2.0;
+
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + float2(Offset.x * 2.0, 0) ).rgb;//相邻四个像素是1/12的权重
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + float2(Offset.z * 2.0, 0) ).rgb;
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + float2(0, Offset.y * 2.0) ).rgb;
+    OutColor += Texture2DSample(InputTexture, InputSampler, RawUV + float2(0, Offset.w * 2.0) ).rgb;
+		
+	OutColor *= 0.0833f;
+}
+
+void DownSamplePS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float3 FinalColor = 0.0;
+	DownSample(UV,FinalColor);
+	OutColor.rgb = FinalColor;
+}
+
+void UpSamplePS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float3 FinalColor = 0.0;
+	UpSample(UV,FinalColor);
+	OutColor.rgb = FinalColor;
+}

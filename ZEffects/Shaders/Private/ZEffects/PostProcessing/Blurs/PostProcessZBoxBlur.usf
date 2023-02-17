@@ -1,0 +1,43 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PostProcessZBoxBlur.usf: PostProcessing shader to show ZBox Blur.
+=============================================================================*/
+
+#include "../../../Common.ush"
+#include "../../../DeferredShadingCommon.ush"
+#include "../../../ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewportInfo)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+uint Horizontal;
+float BlurRadius;
+
+void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float2 StepOffset  = ViewportInfo_ExtentInverse * BlurRadius;
+
+	float3 FinalColor = 0.0;
+	FinalColor = Texture2DSample(InputTexture, InputSampler, UV).rgb;
+	
+	if(Horizontal)
+	{
+		for(int i=1; i<5; i++)
+		{
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV+float2(StepOffset.x * i,0)).rgb;
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV-float2(StepOffset.x * i,0)).rgb;
+		}
+	}
+	else
+	{
+		for(int i=1; i<5; i++)
+		{
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV+float2(0, StepOffset.y * i)).rgb;
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV-float2(0, StepOffset.y * i)).rgb;
+		}
+	}
+	OutColor.rgb = (FinalColor / 9.0);
+}

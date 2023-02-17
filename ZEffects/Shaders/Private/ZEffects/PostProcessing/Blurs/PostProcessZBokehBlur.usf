@@ -1,0 +1,35 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PostProcessZBokehBlur.usf: PostProcessing shader to show ZBokeh Blur.
+=============================================================================*/
+
+#include "../../../Common.ush"
+#include "../../../DeferredShadingCommon.ush"
+#include "../../../ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewportInfo)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+float4 GoldenRot;
+float BlurRadius;
+int Iteration;
+
+void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	float2x2 GoldenRotMat=float2x2(GoldenRot.x,GoldenRot.y,GoldenRot.z,GoldenRot.w);
+	float2 UV = UVAndScreenPos.xy;
+	float Radius = ViewportInfo_ExtentInverse * BlurRadius;
+	float3 FinalColor=float3(0.0,0.0,0.0);
+
+	float2 RotatedVector=float2(1.0,0.0);
+	for(int j = 0.0; j < Iteration; j++)
+	{
+		float2 UVOffset = sqrt(j / (float)Iteration) * Radius * RotatedVector;		
+		RotatedVector = mul(GoldenRotMat,RotatedVector);
+		FinalColor += Texture2DSample(InputTexture, InputSampler, UV + UVOffset).rgb;
+	}
+	OutColor.rgb = FinalColor / Iteration;
+
+}

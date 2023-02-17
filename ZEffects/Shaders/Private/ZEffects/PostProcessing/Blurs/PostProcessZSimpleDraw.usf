@@ -1,0 +1,20 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PostProcessZSimpleDraw.usf: PostProcessing shader to show Draw Texture back to scene color Blur.
+=============================================================================*/
+
+#include "../../../Common.ush"
+#include "../../../DeferredShadingCommon.ush"
+#include "../../../ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewportInfo)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+
+void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	OutColor.rgb = Texture2DSample(InputTexture, InputSampler, UV).rgb;
+}

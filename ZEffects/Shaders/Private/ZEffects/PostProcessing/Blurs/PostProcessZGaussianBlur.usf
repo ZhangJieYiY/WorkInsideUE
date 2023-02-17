@@ -1,0 +1,46 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	PostProcessZGaussianBlur.usf: PostProcessing shader to show ZGaussian Blur.
+=============================================================================*/
+
+#include "../../../Common.ush"
+#include "../../../DeferredShadingCommon.ush"
+#include "../../../ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewportInfo)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+uint Horizontal;
+float BlurRadius;
+
+void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
+{
+	float2 UV = UVAndScreenPos.xy;
+	float weight[5] = {0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216};
+	uint2 TextureSize;
+    InputTexture.GetDimensions(TextureSize.x, TextureSize.y);
+	float2 StepOffset  = 1.0 / TextureSize * BlurRadius;
+
+	float3 FinalColor = 0.0;
+	FinalColor = Texture2DSample(InputTexture, InputSampler, UV).rgb * weight[0];
+	
+	if(Horizontal)
+	{
+		for(int i=1; i<5; i++)
+		{
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV+float2(StepOffset.x * i,0)).rgb * weight[i];
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV-float2(StepOffset.x * i,0)).rgb * weight[i];
+		}
+	}
+	else
+	{
+		for(int i=1; i<5; i++)
+		{
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV+float2(0, StepOffset.y * i)).rgb * weight[i];
+			FinalColor += Texture2DSample(InputTexture, InputSampler, UV-float2(0, StepOffset.y * i)).rgb * weight[i];
+		}
+	}
+	OutColor.rgb = (FinalColor);
+}
